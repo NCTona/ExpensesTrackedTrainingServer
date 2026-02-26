@@ -1,0 +1,15 @@
+creation_timestamp: 1768353726993
+current_stage: None
+deployment_job_state: null
+description: null
+last_updated_timestamp: 1768353726993
+model_id: m-d5985f3f43b24f338077907241521ad8
+name: ExpenseForecastingLSTM
+run_id: 17e4506089064e858578bbc90eeae258
+run_link: null
+source: models:/m-d5985f3f43b24f338077907241521ad8
+status: READY
+status_message: null
+storage_location: file:///E:/Workspace/ML/mlruns/503276297456489344/models/m-d5985f3f43b24f338077907241521ad8/artifacts
+user_id: null
+version: 2

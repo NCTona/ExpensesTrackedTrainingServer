@@ -1,0 +1,15 @@
+artifact_uri: file:///E:/Workspace/ML/mlruns/503276297456489344/4347fc7fdd7e455892c3a30b730ef9b6/artifacts
+deleted_time: 1768350940032
+end_time: 1768350169734
+entry_point_name: ''
+experiment_id: '503276297456489344'
+lifecycle_stage: deleted
+run_id: 4347fc7fdd7e455892c3a30b730ef9b6
+run_name: polite-fowl-421
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1768350151855
+status: 3
+tags: []
+user_id: NCTona

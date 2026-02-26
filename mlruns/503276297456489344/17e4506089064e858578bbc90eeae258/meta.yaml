@@ -1,0 +1,15 @@
+artifact_uri: file:///E:/Workspace/ML/mlruns/503276297456489344/17e4506089064e858578bbc90eeae258/artifacts
+deleted_time: 1768354848329
+end_time: 1768353727080
+entry_point_name: ''
+experiment_id: '503276297456489344'
+lifecycle_stage: deleted
+run_id: 17e4506089064e858578bbc90eeae258
+run_name: marvelous-quail-512
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1768353712220
+status: 3
+tags: []
+user_id: NCTona

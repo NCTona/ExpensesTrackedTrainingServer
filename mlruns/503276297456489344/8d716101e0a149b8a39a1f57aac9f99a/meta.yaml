@@ -1,0 +1,15 @@
+artifact_uri: file:///E:/Workspace/ML/mlruns/503276297456489344/8d716101e0a149b8a39a1f57aac9f99a/artifacts
+deleted_time: 1768353765996
+end_time: 1768350669878
+entry_point_name: ''
+experiment_id: '503276297456489344'
+lifecycle_stage: deleted
+run_id: 8d716101e0a149b8a39a1f57aac9f99a
+run_name: ambitious-mouse-848
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1768350652790
+status: 3
+tags: []
+user_id: NCTona

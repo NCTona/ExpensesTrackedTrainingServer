@@ -1,0 +1,14 @@
+artifact_uri: file:///E:/Workspace/ML/mlruns/503276297456489344/ffc11ace9c304b6994411cf29e923f43/artifacts
+end_time: 1768354833865
+entry_point_name: ''
+experiment_id: '503276297456489344'
+lifecycle_stage: active
+run_id: ffc11ace9c304b6994411cf29e923f43
+run_name: efficient-seal-379
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1768354820815
+status: 3
+tags: []
+user_id: NCTona
