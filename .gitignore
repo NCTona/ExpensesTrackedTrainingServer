@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ML Models (tracked by DVC)
+models/*.joblib
+models/*.tflite
+models/*.h5
+
+# MLflow
+mlruns/
+
+# Data (tracked by DVC)
+data/raw/
+data/processed/
+*.csv
+!data_predict.csv
+
+# DVC local/cache
+/tmp/
+.dvc/cache/
+.dvc/tmp/
+
+# Prefect
+prefect_output.log
+.prefectdb/
+
+# Env
+.env
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temp
+temp_docx/
+*.docx

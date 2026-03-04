@@ -8,3 +8,5 @@ lightgbm
 requests
 joblib
 tensorflow
+dvc
+prefect

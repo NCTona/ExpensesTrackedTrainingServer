@@ -1,0 +1,93 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - path: data/raw/transactions.csv
+      hash: md5
+      md5: 8a085628c5cc9583c81f97e2ea9d6de2
+      size: 911
+    - path: src/preprocess.py
+      hash: md5
+      md5: 3599ee104f9fdf917085e88103ad6baf
+      size: 3645
+    outs:
+    - path: data/processed/
+      hash: md5
+      md5: 76b1443ca95cec11bb33829a85586fe3.dir
+      size: 567
+      nfiles: 3
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: data/processed/
+      hash: md5
+      md5: 23f1b8fb26132df2c6b920edaa875d28.dir
+      size: 14030
+      nfiles: 4
+    - path: src/train.py
+      hash: md5
+      md5: 0f744e8ba9cbf612ba0fa4497fd6bfb9
+      size: 4441
+    outs:
+    - path: models/expense_model.tflite
+      hash: md5
+      md5: 263212f98762193c0f738a5b15fbd1c5
+      size: 353364
+  train_lstm:
+    cmd: python src/train_lstm.py
+    deps:
+    - path: data/processed/
+      hash: md5
+      md5: 76b1443ca95cec11bb33829a85586fe3.dir
+      size: 567
+      nfiles: 3
+    - path: src/train_lstm.py
+      hash: md5
+      md5: c89c56f4248d33471160d0a3e691793b
+      size: 4958
+    outs:
+    - path: models/expense_model.h5
+      hash: md5
+      md5: 9bbe54e9f2b5adaa95c518825e30ca02
+      size: 89968
+    - path: models/expense_model.tflite
+      hash: md5
+      md5: 1aa28fe3491b4a6667e735ae01436235
+      size: 30768
+    - path: models/meta_lstm.joblib
+      hash: md5
+      md5: c1e1ddb20aa915957e069588994f90c7
+      size: 59
+  train_lgbm:
+    cmd: python src/train_lgbm.py
+    deps:
+    - path: data/raw/transactions.csv
+      hash: md5
+      md5: 8a085628c5cc9583c81f97e2ea9d6de2
+      size: 911
+    - path: src/train_lgbm.py
+      hash: md5
+      md5: 46106242e3d1d7f3d299fd75c45c7fd0
+      size: 10328
+    outs:
+    - path: models/category_forecast_lgbm.joblib
+      hash: md5
+      md5: e3cf541ccac109b266e5d44d9fe57118
+      size: 142813
+  train_iforest:
+    cmd: python src/train_iforest.py
+    deps:
+    - path: data/raw/transactions.csv
+      hash: md5
+      md5: 8a085628c5cc9583c81f97e2ea9d6de2
+      size: 911
+    - path: src/train_iforest.py
+      hash: md5
+      md5: 02c194e91976d1cfadf0fe8e40e7510a
+      size: 5921
+    outs:
+    - path: models/anomaly_iforest.joblib
+      hash: md5
+      md5: 8fff2f3c0e4e655f3d9edfe5d9cb435f
+      size: 1597578

@@ -1,0 +1,34 @@
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+      - src/preprocess.py
+      - data/raw/transactions.csv
+    outs:
+      - data/processed/
+  
+  train_lstm:
+    cmd: python src/train_lstm.py
+    deps:
+      - src/train_lstm.py
+      - data/processed/
+    outs:
+      - models/expense_model.tflite
+      - models/expense_model.h5
+      - models/meta_lstm.joblib
+
+  train_lgbm:
+    cmd: python src/train_lgbm.py
+    deps:
+      - src/train_lgbm.py
+      - data/raw/transactions.csv
+    outs:
+      - models/category_forecast_lgbm.joblib
+
+  train_iforest:
+    cmd: python src/train_iforest.py
+    deps:
+      - src/train_iforest.py
+      - data/raw/transactions.csv
+    outs:
+      - models/anomaly_iforest.joblib
