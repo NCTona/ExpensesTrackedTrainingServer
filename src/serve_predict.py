@@ -16,15 +16,28 @@ Endpoints:
 import os
 import joblib
 import numpy as np
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 import uvicorn
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Startup/shutdown lifecycle."""
+    load_model()
+    load_anomaly_model()
+    load_lstm_model()
+    yield  # Server chạy
+    # Shutdown cleanup (nếu cần)
+
 
 app = FastAPI(
     title="Expense Forecasting API",
     description="LightGBM + LSTM + Isolation Forest prediction service cho dự báo chi tiêu",
-    version="3.0.0"
+    version="3.0.0",
+    lifespan=lifespan
 )
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "category_forecast_lgbm.joblib")
@@ -42,9 +55,9 @@ def load_model():
     global model_bundle
     if os.path.exists(MODEL_PATH):
         model_bundle = joblib.load(MODEL_PATH)
-        print(f"✅ Loaded LightGBM model from {MODEL_PATH}")
+        print(f"Loaded LightGBM model from {MODEL_PATH}")
     else:
-        print(f"⚠️ Model not found at {MODEL_PATH}")
+        print(f"Model not found at {MODEL_PATH}")
 
 
 def load_anomaly_model():
@@ -52,9 +65,9 @@ def load_anomaly_model():
     global anomaly_bundle
     if os.path.exists(ANOMALY_MODEL_PATH):
         anomaly_bundle = joblib.load(ANOMALY_MODEL_PATH)
-        print(f"✅ Loaded Isolation Forest model from {ANOMALY_MODEL_PATH}")
+        print(f"Loaded Isolation Forest model from {ANOMALY_MODEL_PATH}")
     else:
-        print(f"⚠️ Anomaly model not found at {ANOMALY_MODEL_PATH}")
+        print(f"Anomaly model not found at {ANOMALY_MODEL_PATH}")
 
 
 def load_lstm_model():
@@ -64,15 +77,15 @@ def load_lstm_model():
         import tensorflow as tf
         # compile=False vì server chỉ cần predict, không cần optimizer/loss
         lstm_model = tf.keras.models.load_model(LSTM_MODEL_PATH, compile=False)
-        print(f"✅ Loaded LSTM model from {LSTM_MODEL_PATH}")
+        print(f"Loaded LSTM model from {LSTM_MODEL_PATH}")
     else:
-        print(f"⚠️ LSTM model not found at {LSTM_MODEL_PATH}")
+        print(f"LSTM model not found at {LSTM_MODEL_PATH}")
 
     if os.path.exists(LSTM_META_PATH):
         lstm_meta = joblib.load(LSTM_META_PATH)
-        print(f"✅ Loaded LSTM meta: {lstm_meta}")
+        print(f"Loaded LSTM meta: {lstm_meta}")
     else:
-        print(f"⚠️ LSTM meta not found at {LSTM_META_PATH}")
+        print(f"LSTM meta not found at {LSTM_META_PATH}")
 
 
 # ================= Request/Response Models =================
@@ -166,12 +179,6 @@ class WeeklyPredictResponse(BaseModel):
 
 # ================= API Endpoints =================
 
-@app.on_event("startup")
-async def startup():
-    load_model()
-    load_anomaly_model()
-    load_lstm_model()
-
 
 @app.get("/health")
 async def health_check():
@@ -190,7 +197,6 @@ async def predict_category(request: CategoryPredictRequest):
         raise HTTPException(status_code=503, detail="Model chưa được load")
 
     model = model_bundle["model"]
-    feature_cols = model_bundle["feature_cols"]
 
     # Tạo feature vector theo đúng thứ tự — KHÔNG có user_id
     features = np.array([[
@@ -279,7 +285,7 @@ async def analyze_trend(request: TrendAnalysisRequest):
         message = f"Bạn đang chi tiêu nhiều hơn {deviation:.0f}% so với mức trung bình. Cân nhắc điều chỉnh."
     else:
         status = "warning"
-        message = f"⚠️ Cảnh báo: Chi tiêu vượt {deviation:.0f}% so với xu hướng số đông!"
+        message = f"Canh bao: Chi tieu vuot {deviation:.0f}% so voi xu huong so dong!"
 
     return TrendAnalysisResponse(
         category_id=request.category_id,
@@ -298,7 +304,6 @@ async def check_anomalies(request: AnomalyCheckRequest):
         raise HTTPException(status_code=503, detail="Anomaly model chưa được load")
 
     model = anomaly_bundle["model"]
-    feature_cols = anomaly_bundle["feature_cols"]
 
     results = []
     for tx in request.transactions:
