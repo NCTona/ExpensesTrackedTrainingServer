@@ -1,0 +1,6 @@
+artifact_location: file:///E:/Workspace/ML/mlruns/234000980711879630
+creation_time: 1768354913041
+experiment_id: '234000980711879630'
+last_update_time: 1768354913041
+lifecycle_stage: active
+name: Expense Forecasting - GRU User Embedding

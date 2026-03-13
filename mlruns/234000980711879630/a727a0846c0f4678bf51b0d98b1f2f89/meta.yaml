@@ -1,0 +1,14 @@
+artifact_uri: file:///E:/Workspace/ML/mlruns/234000980711879630/a727a0846c0f4678bf51b0d98b1f2f89/artifacts
+end_time: 1768354926425
+entry_point_name: ''
+experiment_id: '234000980711879630'
+lifecycle_stage: active
+run_id: a727a0846c0f4678bf51b0d98b1f2f89
+run_name: zealous-bass-875
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1768354913188
+status: 3
+tags: []
+user_id: NCTona
