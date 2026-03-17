@@ -1,4 +1,4 @@
-# Dockerfile cho Prefect Pipeline (chạy scheduled trên VPS)
+# Dockerfile cho Prefect Pipeline (chay scheduled tren VPS)
 # Build: docker build -f Dockerfile.pipeline -t mlops-pipeline .
 # Run:   docker run -d --name mlops-pipeline --restart=always mlops-pipeline
 
@@ -6,21 +6,20 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Cài system dependencies cho TensorFlow
+# Cai system dependencies cho TensorFlow
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Cài Python dependencies
+# Cai Python dependencies
 COPY requirement.txt .
 RUN pip install --no-cache-dir -r requirement.txt
 
-# Copy toàn bộ project
+# Copy toan bo project
 COPY src/ src/
-COPY flows/ flows/
 COPY models/ models/
 COPY data/ data/
 COPY dvc.yaml dvc.lock ./
 
-# Prefect pipeline chạy liên tục với cron schedule
-CMD ["python", "flows/main_flow.py"]
+# Prefect pipeline chay lien tuc voi cron schedule
+CMD ["python", "-m", "src.pipeline.main_flow"]

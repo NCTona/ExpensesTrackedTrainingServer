@@ -1,0 +1,17 @@
+.venv/
+.git/
+.dvc/cache/
+.dvc/tmp/
+mlruns/
+__pycache__/
+.idea/
+.vscode/
+temp_docx/
+*.md
+*.txt
+!requirement.txt
+*.docx
+*.log
+Thumbs.db
+.DS_Store
+.env

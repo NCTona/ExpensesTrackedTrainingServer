@@ -20,7 +20,6 @@ env/
 # ML Models (tracked by DVC)
 models/*.joblib
 models/*.tflite
-models/*.h5
 
 # MLflow
 mlruns/
@@ -48,5 +47,3 @@ Thumbs.db
 .DS_Store
 
 # Temp
-temp_docx/
-*.docx

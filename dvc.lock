@@ -1,21 +1,21 @@
 schema: '2.0'
 stages:
   preprocess:
-    cmd: python src/preprocess.py
+    cmd: python -m src.data.preprocess
     deps:
     - path: data/raw/transactions.csv
       hash: md5
-      md5: 79e6a31c0e7a665017483daf993a5ff8
-      size: 1008
-    - path: src/preprocess.py
+      md5: 6ac19e55444287c61f69998817ce3de9
+      size: 2655
+    - path: src/data/preprocess.py
       hash: md5
-      md5: 3599ee104f9fdf917085e88103ad6baf
-      size: 3645
+      md5: 277d9fdf2d3ea622beb6a39d0e38b86c
+      size: 5196
     outs:
     - path: data/processed/
       hash: md5
-      md5: 0dbcbc553445ad8ccde157532a4bb2a1.dir
-      size: 567
+      md5: b3865e9e275bc0e295823c1cc0e2144b.dir
+      size: 481
       nfiles: 3
   train:
     cmd: python src/train.py
@@ -35,59 +35,55 @@ stages:
       md5: 263212f98762193c0f738a5b15fbd1c5
       size: 353364
   train_lstm:
-    cmd: python src/train_lstm.py
+    cmd: python -m src.training.train_lstm
     deps:
     - path: data/processed/
       hash: md5
-      md5: 0dbcbc553445ad8ccde157532a4bb2a1.dir
-      size: 567
+      md5: b3865e9e275bc0e295823c1cc0e2144b.dir
+      size: 481
       nfiles: 3
-    - path: src/train_lstm.py
+    - path: src/training/train_lstm.py
       hash: md5
-      md5: c89c56f4248d33471160d0a3e691793b
-      size: 4958
+      md5: 16c08725878aa52c42415523273060a7
+      size: 4842
     outs:
-    - path: models/expense_model.h5
-      hash: md5
-      md5: d2c2eca256596cda662780174ccef5d6
-      size: 89968
     - path: models/expense_model.tflite
       hash: md5
-      md5: 088dde2966e984238ba11f0c33f1d7e9
+      md5: f862ffbca8dfb57098c22495f53b9ad0
       size: 30768
     - path: models/meta_lstm.joblib
       hash: md5
       md5: c1e1ddb20aa915957e069588994f90c7
       size: 59
   train_lgbm:
-    cmd: python src/train_lgbm.py
+    cmd: python -m src.training.train_lgbm
     deps:
     - path: data/raw/transactions.csv
       hash: md5
-      md5: 79e6a31c0e7a665017483daf993a5ff8
-      size: 1008
-    - path: src/train_lgbm.py
+      md5: 6ac19e55444287c61f69998817ce3de9
+      size: 2655
+    - path: src/training/train_lgbm.py
       hash: md5
-      md5: 46106242e3d1d7f3d299fd75c45c7fd0
-      size: 10328
+      md5: 964015610fcb83caf046e014ff8b36b5
+      size: 7397
     outs:
     - path: models/category_forecast_lgbm.joblib
       hash: md5
-      md5: e3cf541ccac109b266e5d44d9fe57118
-      size: 142813
+      md5: 4dd375c04012cfe0baf4743c4aeb5c08
+      size: 556275
   train_iforest:
-    cmd: python src/train_iforest.py
+    cmd: python -m src.training.train_iforest
     deps:
     - path: data/raw/transactions.csv
       hash: md5
-      md5: 79e6a31c0e7a665017483daf993a5ff8
-      size: 1008
-    - path: src/train_iforest.py
+      md5: 6ac19e55444287c61f69998817ce3de9
+      size: 2655
+    - path: src/training/train_iforest.py
       hash: md5
-      md5: 02c194e91976d1cfadf0fe8e40e7510a
-      size: 5921
+      md5: ad9ea6ae4ea389a6980712560cec8749
+      size: 4271
     outs:
     - path: models/anomaly_iforest.joblib
       hash: md5
-      md5: 8fff2f3c0e4e655f3d9edfe5d9cb435f
-      size: 1597578
+      md5: 03de62345c3e850a4b5857ee6c495e6a
+      size: 1428618
