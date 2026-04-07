@@ -35,6 +35,7 @@ LSTM_EPOCHS = 50
 LSTM_BATCH_SIZE = 8
 LSTM_UNITS = 32
 LSTM_DENSE_UNITS = 16
+LSTM_FOOD_CATEGORY_ID = 2   # Chi train LSTM tren category "An uong" de dam bao on dinh
 
 # ==============================================================
 # LIGHTGBM TRAINING
@@ -53,12 +54,9 @@ LGBM_PARAMS = {
 }
 
 LGBM_FEATURE_COLS = [
-    "category_id", "month", "year",
-    "monthly_spending", "transaction_count", "avg_transaction",
-    "max_transaction", "avg_day_of_week", "avg_day_of_month",
-    "total_all_categories", "category_ratio",
-    "prev_month_spending", "prev_month_count", "prev_month_ratio",
-    "avg_monthly_spending_3m", "spending_trend",
+    "category_id", "days_passed", "days_remaining",
+    "current_spent", "current_tx_count", "daily_rate",
+    "category_ratio",
 ]
 
 # ==============================================================
@@ -113,8 +111,15 @@ PREFECT_PORT = 4200
 PIPELINE_CRON = "0 2 * * 0"   # 2:00 sang Chu Nhat hang tuan
 
 # ==============================================================
-# MLFLOW EXPERIMENT NAMES
+# MLFLOW
 # ==============================================================
+# Tracking URI tuong minh de tranh MLflow tao mlruns/ o CWD sai
+MLFLOW_TRACKING_URI = "file:///" + os.path.join(BASE_DIR, "mlruns").replace("\\", "/")
+
 MLFLOW_LSTM_EXPERIMENT = "Expense Forecasting - LSTM"
 MLFLOW_LGBM_EXPERIMENT = "Expense Forecasting - LightGBM"
 MLFLOW_ANOMALY_EXPERIMENT = "Expense Forecasting - Anomaly Detection"
+
+# Set tracking URI ngay khi import config
+import mlflow as _mlflow
+_mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)

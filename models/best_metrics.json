@@ -1,17 +1,18 @@
 {
   "lstm": {
-    "rmse": 0.1674,
-    "mae": 0.1674,
-    "run_id": "5b62fc135b1942cfb682c00182a32054"
+    "rmse": 0.1609,
+    "mae": 0.1162,
+    "run_id": "f582fcdf0233431097c99048cc743438"
   },
   "lgbm": {
-    "rmse": 75645.2819,
-    "run_id": "2309bc80163945e092a1c39cdc0409c3"
+    "rmse": 56895.8616,
+    "mae": 26326.2165,
+    "run_id": "6ef94c16b40a47af845bc26fc9b35c35"
   },
   "iforest": {
-    "anomaly_ratio": 5.0,
-    "n_anomalies": 461,
-    "n_samples": 9221,
-    "run_id": "bc09721c8a4742e8bdb3e0ea2d2ef72a"
+    "anomaly_ratio": 5.01,
+    "n_anomalies": 463,
+    "n_samples": 9248,
+    "run_id": "46e37310b3d044329714c2788aee4b36"
   }
 }

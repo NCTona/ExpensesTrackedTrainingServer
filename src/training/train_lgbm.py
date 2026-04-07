@@ -2,21 +2,23 @@
 """
 train_lgbm.py — Train LightGBM cho bai toan du bao chi tieu theo danh muc.
 
-Model nay chay SERVER-SIDE (tren Spring Boot) de:
-  - Du bao chi tieu thang tiep theo theo tung danh muc
-  - Su dung behavioral features thay vi user_id de generalize cho moi user
+Model nay chay SERVER-SIDE (tren FastAPI) de:
+  - Du bao tong chi tieu CUOI THANG HIEN TAI dua tren chi tieu dang dien ra
+  - Giup canh bao user khi sap vuot ngan sach
 
-Input features (tabular data):
-  - category_id, month, year
-  - monthly_spending, transaction_count, avg_transaction, max_transaction
-  - avg_day_of_week, avg_day_of_month
-  - total_all_categories, category_ratio
-  - prev_month_spending, prev_month_count, prev_month_ratio
-  - avg_monthly_spending_3m, spending_trend
+Input features:
+  - category_id: danh muc chi tieu
+  - days_passed: so ngay da qua trong thang
+  - days_remaining: so ngay con lai
+  - current_spent: da chi bao nhieu cho category nay
+  - current_tx_count: so giao dich da thuc hien
+  - daily_rate: toc do chi binh quan/ngay = current_spent / days_passed
+  - category_ratio: ti le category / tong chi tat ca categories
 
 Target:
-  - next_month_spending: Tong chi tieu cho category do trong thang tiep theo
+  - month_end_spending: Tong chi tieu THUC TE cuoi thang cho category do
 """
+
 
 import logging
 import os
@@ -49,88 +51,98 @@ logger = logging.getLogger(__name__)
 
 def _engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Feature Engineering: Tao bang dac trung tu du lieu giao dich tho.
+    Feature Engineering: Tao training data tu giao dich.
 
-    Moi hang dai dien cho (user, category, month) voi cac features tong hop.
-    Khong dung user_id lam feature — thay bang behavioral features
-    de model generalize cho moi user (bao gom user moi).
+    Voi moi thang da hoan tat, cat tai nhieu thoi diem (moi 3 ngay)
+    de tao training samples. Moi sample mo phong:
+      "Tai ngay X, user da chi Y cho category Z → cuoi thang thuc te = W"
 
     Args:
         df: DataFrame giao dich voi cot date, amount, user_id, category_id.
 
     Returns:
-        DataFrame voi cac feature columns va target next_month_spending.
+        DataFrame voi feature columns va target month_end_spending.
     """
+    df["date"] = pd.to_datetime(df["date"])
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
-    df["day_of_week"] = df["date"].dt.dayofweek
-    df["day_of_month"] = df["date"].dt.day
+    df["day"] = df["date"].dt.day
     df["year_month"] = df["date"].dt.to_period("M")
 
-    # Tong hop theo (user, category, year-month)
-    monthly_cat = df.groupby(["user_id", "category_id", "year_month"]).agg(
-        monthly_spending=("amount", "sum"),
-        transaction_count=("amount", "count"),
-        avg_transaction=("amount", "mean"),
-        max_transaction=("amount", "max"),
-        avg_day_of_week=("day_of_week", "mean"),
-        avg_day_of_month=("day_of_month", "mean"),
+    # Tinh tong chi tieu THUC TE cuoi thang cho moi (user, category, month)
+    month_end_totals = df.groupby(["user_id", "category_id", "year_month"]).agg(
+        month_end_spending=("amount", "sum"),
+        total_tx_count=("amount", "count"),
     ).reset_index()
 
-    # Tong chi tieu toan bo categories trong thang
-    monthly_total = df.groupby(["user_id", "year_month"]).agg(
-        total_all_categories=("amount", "sum")
+    # Tong chi tieu tat ca categories trong thang (cho category_ratio)
+    month_totals_all = df.groupby(["user_id", "year_month"]).agg(
+        month_total_all=("amount", "sum"),
     ).reset_index()
 
-    monthly_cat = monthly_cat.merge(
-        monthly_total, on=["user_id", "year_month"], how="left"
+    month_end_totals = month_end_totals.merge(
+        month_totals_all, on=["user_id", "year_month"], how="left"
     )
 
-    # Ti le chi tieu cua category so voi tong
-    monthly_cat["category_ratio"] = (
-        monthly_cat["monthly_spending"]
-        / monthly_cat["total_all_categories"].replace(0, 1)
-    )
+    samples = []
+    cut_days = list(range(3, 29, 3))  # [3, 6, 9, ..., 27]
 
-    monthly_cat = monthly_cat.sort_values(["user_id", "category_id", "year_month"])
+    for _, row in month_end_totals.iterrows():
+        user_id = row["user_id"]
+        cat_id = row["category_id"]
+        ym = row["year_month"]
+        month_end = row["month_end_spending"]
+        month_total_all = row["month_total_all"]
 
-    # Lag features (thang truoc)
-    group_cols = ["user_id", "category_id"]
-    monthly_cat["prev_month_spending"] = monthly_cat.groupby(group_cols)[
-        "monthly_spending"
-    ].shift(1)
-    monthly_cat["prev_month_count"] = monthly_cat.groupby(group_cols)[
-        "transaction_count"
-    ].shift(1)
-    monthly_cat["prev_month_ratio"] = monthly_cat.groupby(group_cols)[
-        "category_ratio"
-    ].shift(1)
+        # So ngay trong thang
+        total_days = ym.to_timestamp().days_in_month
 
-    # Behavioral features
-    monthly_cat["avg_monthly_spending_3m"] = monthly_cat.groupby(group_cols)[
-        "monthly_spending"
-    ].transform(lambda x: x.rolling(3, min_periods=1).mean().shift(1))
+        # Lay giao dich cua (user, category, month) nay
+        mask = (
+            (df["user_id"] == user_id)
+            & (df["category_id"] == cat_id)
+            & (df["year_month"] == ym)
+        )
+        user_cat_tx = df[mask]
 
-    monthly_cat["spending_trend"] = (
-        monthly_cat["prev_month_spending"]
-        / monthly_cat["avg_monthly_spending_3m"].replace(0, 1)
-    ).clip(0, 5)
+        for cut_day in cut_days:
+            if cut_day > total_days:
+                continue
 
-    # Target: chi tieu thang SAU
-    monthly_cat["next_month_spending"] = monthly_cat.groupby(group_cols)[
-        "monthly_spending"
-    ].shift(-1)
+            # Chi tinh giao dich TU NGAY 1 DEN cut_day
+            tx_until_cut = user_cat_tx[user_cat_tx["day"] <= cut_day]
 
-    # Extract month/year tu period
-    monthly_cat["month"] = monthly_cat["year_month"].dt.month
-    monthly_cat["year"] = monthly_cat["year_month"].dt.year
+            current_spent = float(tx_until_cut["amount"].sum())
+            current_tx_count = len(tx_until_cut)
+            days_passed = cut_day
+            days_remaining = total_days - cut_day
+            daily_rate = current_spent / days_passed if days_passed > 0 else 0
 
-    # Loai bo rows thieu
-    monthly_cat = monthly_cat.dropna(
-        subset=["prev_month_spending", "next_month_spending", "avg_monthly_spending_3m"]
-    )
+            # Tong tat ca categories den ngay cut_day
+            mask_all = (
+                (df["user_id"] == user_id)
+                & (df["year_month"] == ym)
+                & (df["day"] <= cut_day)
+            )
+            total_all_until_cut = float(df[mask_all]["amount"].sum())
+            category_ratio = (
+                current_spent / total_all_until_cut
+                if total_all_until_cut > 0
+                else 0
+            )
 
-    return monthly_cat
+            samples.append({
+                "category_id": cat_id,
+                "days_passed": days_passed,
+                "days_remaining": days_remaining,
+                "current_spent": current_spent,
+                "current_tx_count": current_tx_count,
+                "daily_rate": daily_rate,
+                "category_ratio": category_ratio,
+                "month_end_spending": month_end,  # TARGET
+            })
+
+    return pd.DataFrame(samples)
 
 
 @task(name="Train LightGBM Category Forecast Model")
@@ -160,7 +172,7 @@ def train_lightgbm() -> None:
         )
         return
 
-    target_col = "next_month_spending"
+    target_col = "month_end_spending"
     X = features_df[LGBM_FEATURE_COLS].values
     y_vals = features_df[target_col].values
 

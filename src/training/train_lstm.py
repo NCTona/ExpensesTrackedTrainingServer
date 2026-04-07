@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-train_lstm.py — Train LSTM model du bao chi tieu theo tuan.
+train_lstm.py — Train LSTM model du bao xu huong chi tieu AN UONG theo tuan.
 
 Model nay chay on-device (TFLite) va server-side (.h5):
-  - Input: 4 tuan chi tieu gan nhat (per-window max normalized)
-  - Output: du doan chi tieu tuan tiep theo
+  - Input: 4 tuan chi tieu an uong gan nhat (per-window max normalized)
+  - Output: du doan chi tieu an uong tuan tiep theo
+
+LSTM chi train tren category An uong (category_id=2) vi:
+  - Cac category khac co chi tieu dot ngot, bat thuong -> LSTM khong on dinh
+  - An uong co tan suat deu, amount on dinh -> phu hop voi LSTM forecasting
 
 Khong dung User Embedding vi model chay tren device,
 moi device phuc vu 1 user duy nhat.
@@ -98,6 +102,7 @@ def train() -> None:
         mlflow.log_param("batch_size", LSTM_BATCH_SIZE)
         mlflow.log_param("user_embedding", False)
         mlflow.log_param("aggregation", "weekly")
+        mlflow.log_param("category_filter", "food_only (category_id=2)")
 
         early_stop = tf.keras.callbacks.EarlyStopping(
             monitor="val_loss", patience=5, restore_best_weights=True

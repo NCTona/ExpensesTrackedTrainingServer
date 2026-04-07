@@ -4,9 +4,14 @@ preprocess.py — Tien xu ly du lieu giao dich thanh time series theo tuan.
 
 Pipeline:
   1. Doc transactions.csv
-  2. Aggregate theo tuan (weekly spending)
-  3. Tao sequences (window 4 tuan) voi per-window max normalization
-  4. Luu X_ts.npy, y.npy, meta.joblib vao data/processed/
+  2. Filter CHI category "An uong" (category_id=2) cho LSTM
+  3. Aggregate theo tuan (weekly spending)
+  4. Tao sequences (window 4 tuan) voi per-window max normalization
+  5. Luu X_ts.npy, y.npy, meta.joblib vao data/processed/
+
+Ly do chi dung category An uong:
+  - Cac category khac co chi tieu dot ngot, bat thuong -> LSTM khong hoc duoc trend
+  - An uong co tan suat deu, amount on dinh -> phu hop voi LSTM forecasting
 """
 
 import logging
@@ -25,6 +30,7 @@ from src.config import (
     CSV_DEFAULT_COLUMNS,
     DEMO_NUM_USERS,
     DEMO_MONTHS,
+    LSTM_FOOD_CATEGORY_ID,
 )
 from src.data.generate_demo import generate_realistic_expenses
 
@@ -101,12 +107,13 @@ def _process_users_weekly(
     return X_all, y_all
 
 
-@task(name="Preprocess Transactions Data (Weekly)")
+@task(name="Preprocess Transactions Data (Weekly - Food Category Only)")
 def preprocess() -> None:
     """
     Tien xu ly du lieu transactions thanh sequences cho LSTM training.
 
     - Doc data/raw/transactions.csv
+    - Filter CHI category An uong (LSTM_FOOD_CATEGORY_ID)
     - Aggregate theo tuan
     - Per-window max normalization (dong bo voi TFLite)
     - Luu vao data/processed/
@@ -124,24 +131,35 @@ def preprocess() -> None:
     df["date"] = pd.to_datetime(df["date"])
     df["amount"] = pd.to_numeric(df["amount"], errors="coerce").fillna(0)
 
-    # Process real data
-    X_ts_all, y_all = _process_users_weekly(df, WINDOW_SIZE)
+    # Filter CHI category An uong cho LSTM
+    total_before = len(df)
+    df_food = df[df["category_id"] == LSTM_FOOD_CATEGORY_ID].copy()
+    logger.info(
+        f"Filtered category_id={LSTM_FOOD_CATEGORY_ID} (An uong): "
+        f"{len(df_food)}/{total_before} transactions"
+    )
+
+    # Process real data (chi An uong)
+    X_ts_all, y_all = _process_users_weekly(df_food, WINDOW_SIZE)
 
     os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 
     # Fallback: generate demo data if real data insufficient
     if len(X_ts_all) == 0:
-        logger.warning("Real data insufficient. Generating demo data for stability...")
+        logger.warning("Real food data insufficient. Generating demo data for stability...")
         df_demo = generate_realistic_expenses(
             num_users=DEMO_NUM_USERS, months=DEMO_MONTHS
         )
         df_demo["date"] = pd.to_datetime(df_demo["date"])
+        # Demo data cung chi lay An uong
+        if "category_id" in df_demo.columns:
+            df_demo = df_demo[df_demo["category_id"] == LSTM_FOOD_CATEGORY_ID]
         demo_X, demo_y = _process_users_weekly(df_demo, WINDOW_SIZE)
         X_ts_all.extend(demo_X)
         y_all.extend(demo_y)
 
     if len(X_ts_all) == 0:
-        logger.warning("Still insufficient data after demo generation.")
+        logger.warning("Still insufficient food data after demo generation.")
         np.save(os.path.join(PROCESSED_DATA_DIR, "X_ts.npy"), np.array([]))
         np.save(os.path.join(PROCESSED_DATA_DIR, "y.npy"), np.array([]))
     else:
@@ -149,16 +167,21 @@ def preprocess() -> None:
         all_y = np.concatenate(y_all)
         np.save(os.path.join(PROCESSED_DATA_DIR, "X_ts.npy"), all_X)
         np.save(os.path.join(PROCESSED_DATA_DIR, "y.npy"), all_y)
-        logger.info(f"Total samples for training: {len(all_X)}")
+        logger.info(f"Total food samples for training: {len(all_X)}")
 
     # Save meta
     joblib.dump(
-        {"window_size": WINDOW_SIZE, "normalization": "per_window_max"},
+        {
+            "window_size": WINDOW_SIZE,
+            "normalization": "per_window_max",
+            "category_id": LSTM_FOOD_CATEGORY_ID,
+            "category_name": "An uong",
+        },
         os.path.join(PROCESSED_DATA_DIR, "meta.joblib"),
     )
     logger.info(
         f"Preprocess complete! Window size: {WINDOW_SIZE} weeks, "
-        f"normalization: per_window_max"
+        f"normalization: per_window_max, category: An uong (id={LSTM_FOOD_CATEGORY_ID})"
     )
 
 

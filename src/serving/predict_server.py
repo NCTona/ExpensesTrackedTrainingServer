@@ -88,30 +88,26 @@ async def reload_models():
 class CategoryPredictRequest(BaseModel):
     """Request body cho du doan chi tieu 1 category."""
     category_id: int
-    month: int
-    year: int
-    monthly_spending: float
-    transaction_count: int
-    avg_transaction: float
-    max_transaction: float
-    avg_day_of_week: float
-    avg_day_of_month: float
-    total_all_categories: float
+    days_passed: int
+    days_remaining: int
+    current_spent: float
+    current_tx_count: int
+    daily_rate: float
     category_ratio: float
-    prev_month_spending: float
-    prev_month_count: int
-    prev_month_ratio: float
-    avg_monthly_spending_3m: float
-    spending_trend: float
+    budget: float = 0.0  # Dung cho post-processing, khong la feature
 
 
 class CategoryPredictResponse(BaseModel):
-    """Response body cho du doan chi tieu."""
+    """Response body cho du doan chi tieu cuoi thang."""
     category_id: int
     predicted_spending: float
-    current_spending: float
-    trend: str
-    change_percent: float
+    current_spent: float
+    budget: float
+    budget_used_pct: float
+    forecast_usage_pct: float
+    status: str
+    suggestion: str
+    suggested_daily: float
 
 
 class BulkPredictRequest(BaseModel):
@@ -174,59 +170,80 @@ async def health_check():
 
 @app.post("/predict/category", response_model=CategoryPredictResponse)
 async def predict_category(request: CategoryPredictRequest):
-    """Du doan chi tieu thang tiep theo cho 1 category."""
+    """Du doan tong chi tieu cuoi thang hien tai cho 1 category."""
     if model_bundle is None:
         raise HTTPException(status_code=503, detail="Model chua duoc load")
 
     model = model_bundle["model"]
 
+    # Chi truyen features cho model (KHONG truyen budget)
     features = np.array([[
         request.category_id,
-        request.month,
-        request.year,
-        request.monthly_spending,
-        request.transaction_count,
-        request.avg_transaction,
-        request.max_transaction,
-        request.avg_day_of_week,
-        request.avg_day_of_month,
-        request.total_all_categories,
+        request.days_passed,
+        request.days_remaining,
+        request.current_spent,
+        request.current_tx_count,
+        request.daily_rate,
         request.category_ratio,
-        request.prev_month_spending,
-        request.prev_month_count,
-        request.prev_month_ratio,
-        request.avg_monthly_spending_3m,
-        request.spending_trend,
     ]])
 
-    predicted = max(0.0, float(model.predict(features)[0]))
+    raw_predict = float(model.predict(features)[0])
+    if raw_predict < float(request.current_spent):
+        # Model predict thap hon current_spent, cong them chenh lech
+        delta = float(request.current_spent) - raw_predict
+        predicted = float(request.current_spent) + delta
+    else:
+        predicted = raw_predict
 
-    # Tinh xu huong so voi thang truoc da ket thuc
-    reference = request.monthly_spending
-    if reference > 0:
-        change_pct = ((predicted - reference) / reference) * 100
-    elif request.avg_monthly_spending_3m > 0:
-        change_pct = (
-            (predicted - request.avg_monthly_spending_3m)
-            / request.avg_monthly_spending_3m
-            * 100
+    # Post-processing: so sanh voi budget
+    budget = request.budget
+    budget_used_pct = (
+        (request.current_spent / budget * 100) if budget > 0 else 0.0
+    )
+    forecast_usage_pct = (predicted / budget * 100) if budget > 0 else 0.0
+
+    # Xac dinh status
+    if budget <= 0:
+        status = "no_budget"
+        suggestion = "Chưa thiết lập ngân sách."
+        suggested_daily = 0.0
+    elif request.current_spent >= budget:
+        status = "over_budget"
+        suggestion = "Đã vượt ngân sách! Nên hạn chế chi tiêu."
+        suggested_daily = 0.0
+    elif forecast_usage_pct > 100:
+        status = "warning"
+        over_amount = predicted - budget
+        remaining_budget = max(0, budget - request.current_spent)
+        suggested_daily = (
+            remaining_budget / request.days_remaining
+            if request.days_remaining > 0
+            else 0.0
+        )
+        suggestion = (
+            f"Dự kiến vượt {round(over_amount):,}đ. "
+            f"Nên giảm xuống ~{round(suggested_daily):,}đ/ngày."
         )
     else:
-        change_pct = 0.0
-
-    if change_pct > 10:
-        trend = "increasing"
-    elif change_pct < -10:
-        trend = "decreasing"
-    else:
-        trend = "stable"
+        status = "safe"
+        remaining_budget = budget - request.current_spent
+        suggested_daily = (
+            remaining_budget / request.days_remaining
+            if request.days_remaining > 0
+            else 0.0
+        )
+        suggestion = "Ngân sách an toàn."
 
     return CategoryPredictResponse(
         category_id=request.category_id,
         predicted_spending=round(predicted, 0),
-        current_spending=reference,
-        trend=trend,
-        change_percent=round(change_pct, 1),
+        current_spent=request.current_spent,
+        budget=budget,
+        budget_used_pct=round(budget_used_pct, 1),
+        forecast_usage_pct=round(forecast_usage_pct, 1),
+        status=status,
+        suggestion=suggestion,
+        suggested_daily=round(suggested_daily, 0),
     )
 
 
@@ -245,7 +262,7 @@ async def analyze_trend(request: TrendAnalysisRequest):
     """Phan tich xu huong chi tieu cua user so voi so dong."""
     if not request.monthly_averages:
         raise HTTPException(
-            status_code=400, detail="Can it nhat 1 gia tri trung binh"
+            status_code=400, detail="Cần ít nhất 1 giá trị trung bình"
         )
 
     pop_avg = float(np.mean(request.monthly_averages))
@@ -259,21 +276,21 @@ async def analyze_trend(request: TrendAnalysisRequest):
     if deviation < -20:
         status = "below_average"
         message = (
-            f"Ban dang chi tieu it hon {abs(deviation):.0f}% so voi muc trung binh. "
-            f"Rat tiet kiem!"
+            f"Bạn đang chi tiêu ít hơn {abs(deviation):.0f}% so với mức trung bình. "
+            f"Rất tiết kiệm!"
         )
     elif deviation <= 20:
         status = "average"
-        message = f"Chi tieu cua ban nam trong muc trung binh ({deviation:+.0f}%)."
+        message = f"Chi tiêu của bạn nằm trong mức trung bình ({deviation:+.0f}%)."
     elif deviation <= 50:
         status = "above_average"
         message = (
-            f"Ban dang chi tieu nhieu hon {deviation:.0f}% so voi muc trung binh. "
-            f"Can nhac dieu chinh."
+            f"Bạn đang chi tiêu nhiều hơn {deviation:.0f}% so với mức trung bình. "
+            f"Cân nhắc điều chỉnh."
         )
     else:
         status = "warning"
-        message = f"Canh bao: Chi tieu vuot {deviation:.0f}% so voi xu huong so dong!"
+        message = f"Cảnh báo: Chi tiêu vượt {deviation:.0f}% so với xu hướng số đông!"
 
     return TrendAnalysisResponse(
         category_id=request.category_id,
@@ -290,7 +307,7 @@ async def check_anomalies(request: AnomalyCheckRequest):
     """Phat hien giao dich bat thuong bang Isolation Forest."""
     if anomaly_bundle is None:
         raise HTTPException(
-            status_code=503, detail="Anomaly model chua duoc load"
+            status_code=503, detail="Anomaly model chưa được load"
         )
 
     model = anomaly_bundle["model"]
@@ -312,22 +329,22 @@ async def check_anomalies(request: AnomalyCheckRequest):
         if is_anomaly:
             if tx.amount_vs_category_avg > 3:
                 message = (
-                    f"Giao dich {tx.amount:,.0f}d cao gap "
-                    f"{tx.amount_vs_category_avg:.1f}x so voi muc binh thuong "
-                    f"cua danh muc nay!"
+                    f"Giao dịch {tx.amount:,.0f}đ cao gấp "
+                    f"{tx.amount_vs_category_avg:.1f}x so với mức bình thường "
+                    f"của danh mục này!"
                 )
             elif tx.amount_vs_category_avg > 2:
                 message = (
-                    f"Giao dich {tx.amount:,.0f}d cao hon dang ke "
-                    f"so voi thoi quen chi tieu cua ban."
+                    f"Giao dịch {tx.amount:,.0f}đ cao hơn đáng kể "
+                    f"so với thói quen chi tiêu của bạn."
                 )
             else:
                 message = (
-                    f"Giao dich {tx.amount:,.0f}d co dau hieu bat thuong "
-                    f"ve thoi diem hoac muc chi."
+                    f"Giao dịch {tx.amount:,.0f}đ có dấu hiệu bất thường "
+                    f"về thời điểm hoặc mức chi."
                 )
         else:
-            message = "Giao dich binh thuong."
+            message = "Giao dịch bình thường."
 
         results.append(AnomalyResult(
             transaction_id=tx.transaction_id,

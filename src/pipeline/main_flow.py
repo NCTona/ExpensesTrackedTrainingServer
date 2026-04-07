@@ -137,10 +137,14 @@ def task_run_dvc() -> bool:
         )
         task_logger.info(f"DVC Repro Output:\n{result.stdout}")
 
-        if "didn't change" in result.stdout.lower() or "stage" not in result.stdout.lower():
+        # Kiem tra xem co stage nao thuc su CHAY khong
+        # "Running stage" xuat hien khi DVC thuc su execute 1 stage
+        if "running stage" in result.stdout.lower():
+            task_logger.info("DVC da chay lai it nhat 1 stage.")
+            return True
+        else:
             task_logger.info("No data changes, model unchanged.")
             return False
-        return True
     except subprocess.CalledProcessError as e:
         task_logger.error(f"DVC Repro Failed:\n{e.stderr}")
         raise
