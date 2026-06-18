@@ -4,7 +4,7 @@ MLOps pipeline phục vụ hệ thống quản lý chi tiêu — train và serve
 
 | Model | Mục đích | Output |
 |---|---|---|
-| **LSTM** | Dự đoán chi tiêu tuần tới | `.tflite` (on-device) + `.h5` (server) |
+| **LSTM** | Dự đoán chi tiêu tuần tới | `.tflite` (on-device) + MLflow Registry (server) |
 | **LightGBM** | Dự đoán chi tiêu theo danh mục (tháng) | `.joblib` |
 | **Isolation Forest** | Phát hiện giao dịch bất thường | `.joblib` |
 
@@ -44,8 +44,19 @@ pip install -r requirement.txt
 
 ### 4. Tạo file `.env`
 
+Copy từ `.env.example` và điền thông tin:
+
 ```bash
-echo PYTHONPATH=. > .env
+cp .env.example .env
+```
+
+Nội dung `.env`:
+
+```env
+PYTHONPATH=.
+MLOPS_API_KEY=your_strong_random_api_key   # API key xác thực với Spring Boot backend
+MLOPS_BACKEND_URL=https://localhost:8080   # URL backend để ingest data / deploy model
+MLOPS_SSL_VERIFY=certs/server_cert.pem     # Đường dẫn cert (hoặc true/false)
 ```
 
 ### 5. Chuẩn bị dữ liệu
@@ -80,27 +91,28 @@ Pipeline sẽ chạy theo thứ tự:
 ### Chạy từng script riêng lẻ
 
 ```bash
-python src/preprocess.py
-python src/train_lstm.py
-python src/train_lgbm.py
-python src/train_iforest.py
+python -m src.data.preprocess
+python -m src.training.train_lstm
+python -m src.training.train_lgbm
+python -m src.training.train_iforest
 ```
 
 ### Output sau khi train
 
 ```
 models/
-├── expense_model.tflite      # LSTM cho Android (on-device)
-├── expense_model.h5          # LSTM cho FastAPI (server-side)
-├── meta_lstm.joblib           # Metadata LSTM
-├── category_forecast_lgbm.joblib  # LightGBM
-└── anomaly_iforest.joblib     # Isolation Forest
+├── expense_model.tflite            # LSTM cho Android (on-device)
+├── meta_lstm.joblib                # Metadata LSTM (window_size, model_type)
+├── category_forecast_lgbm.joblib   # LightGBM
+└── anomaly_iforest.joblib          # Isolation Forest
 ```
+
+> 💡 Bản LSTM server-side được log vào **MLflow Model Registry** (`ExpenseForecastingLSTM`), không xuất ra file `.h5` riêng.
 
 ## 🌐 Chạy Prediction Server
 
 ```bash
-python src/serve_predict.py
+python -m src.serving.predict_server
 ```
 
 Server sẽ chạy tại `http://localhost:8001` với các endpoint:
@@ -108,11 +120,13 @@ Server sẽ chạy tại `http://localhost:8001` với các endpoint:
 | Method | Endpoint | Mô tả |
 |---|---|---|
 | `GET` | `/health` | Kiểm tra trạng thái server |
-| `POST` | `/predict/category` | Dự đoán 1 category |
-| `POST` | `/predict/bulk` | Dự đoán nhiều categories |
+| `POST` | `/reload` | Nạp lại model từ ổ đĩa (sau khi train) |
+| `POST` | `/predict/category` | Dự đoán 1 category (LightGBM) |
+| `POST` | `/predict/bulk` | Dự đoán nhiều categories (LightGBM) |
 | `POST` | `/predict/trend` | Phân tích xu hướng số đông |
-| `POST` | `/predict/anomaly` | Phát hiện bất thường |
-| `POST` | `/predict/weekly` | Dự đoán chi tiêu tuần tới (LSTM) |
+| `POST` | `/predict/anomaly` | Phát hiện bất thường (Isolation Forest) |
+
+> 💡 Dự đoán chi tiêu tuần tới (LSTM) chạy **on-device** trên app Android qua model TFLite — server không có endpoint riêng cho LSTM.
 
 > 📖 API docs tự động tại `http://localhost:8001/docs`
 
@@ -121,7 +135,7 @@ Server sẽ chạy tại `http://localhost:8001` với các endpoint:
 Orchestrate toàn bộ pipeline (ingest data → train → deploy model):
 
 ```bash
-python flows/main_flow.py
+python -m src.pipeline.main_flow
 ```
 
 Flow bao gồm:
@@ -144,14 +158,20 @@ Truy cập `http://localhost:5000` để xem metrics, parameters, và artifacts.
 ```
 .
 ├── src/
-│   ├── preprocess.py        # Tiền xử lý dữ liệu
-│   ├── train_lstm.py        # Train LSTM
-│   ├── train_lgbm.py        # Train LightGBM
-│   ├── train_iforest.py     # Train Isolation Forest
-│   ├── ingest.py            # Lấy data từ API
-│   └── serve_predict.py     # FastAPI server
-├── flows/
-│   └── main_flow.py         # Prefect orchestration
+│   ├── config.py                # Hằng số, đường dẫn, tên file model
+│   ├── data/
+│   │   ├── preprocess.py        # Tiền xử lý dữ liệu (aggregate weekly)
+│   │   ├── ingest.py            # Lấy data từ Spring Boot API
+│   │   ├── loader.py            # Load transactions từ CSV
+│   │   └── generate_demo.py     # Sinh demo data
+│   ├── training/
+│   │   ├── train_lstm.py        # Train LSTM
+│   │   ├── train_lgbm.py        # Train LightGBM
+│   │   └── train_iforest.py     # Train Isolation Forest
+│   ├── serving/
+│   │   └── predict_server.py    # FastAPI server (port 8001)
+│   └── pipeline/
+│       └── main_flow.py         # Prefect orchestration
 ├── models/                  # Model outputs (gitignored, DVC tracked)
 ├── data/
 │   ├── raw/                 # Dữ liệu gốc
