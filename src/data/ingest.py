@@ -16,7 +16,8 @@ from src.config import (
     BACKEND_INGEST_URL,
     RAW_TRANSACTIONS_FILE,
     API_KEY_HEADER,
-    DEFAULT_API_KEY,
+    BACKEND_SSL_VERIFY,
+    get_api_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,12 +35,12 @@ def fetch_data() -> None:
     """
     logger.info(f"Fetching data from {BACKEND_INGEST_URL}...")
     try:
-        headers = {API_KEY_HEADER: DEFAULT_API_KEY}
+        headers = {API_KEY_HEADER: get_api_key()}
         response = requests.get(
             BACKEND_INGEST_URL,
             headers=headers,
             timeout=10,
-            verify=False,
+            verify=BACKEND_SSL_VERIFY,
         )
         response.raise_for_status()
         data = response.json()

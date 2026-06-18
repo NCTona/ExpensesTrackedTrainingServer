@@ -13,6 +13,13 @@ import os
 # ==============================================================
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
+# Load .env (neu co python-dotenv) de doc secrets tu file local
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(BASE_DIR, ".env"))
+except ImportError:
+    pass
+
 RAW_DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
 PROCESSED_DATA_DIR = os.path.join(BASE_DIR, "data", "processed")
 MODELS_DIR = os.path.join(BASE_DIR, "models")
@@ -99,10 +106,38 @@ PREDICT_SERVER_HOST = "0.0.0.0"
 PREDICT_SERVER_PORT = 8001
 PREDICT_SERVER_RELOAD_URL = f"http://127.0.0.1:{PREDICT_SERVER_PORT}/reload"
 
-BACKEND_INGEST_URL = "https://localhost:8080/api/internal/transactions"
-BACKEND_DEPLOY_URL = "https://localhost:8080/api/internal/model/update"
+BACKEND_BASE_URL = os.getenv("MLOPS_BACKEND_URL", "https://localhost:8080")
+BACKEND_INGEST_URL = f"{BACKEND_BASE_URL}/api/internal/transactions"
+BACKEND_DEPLOY_URL = f"{BACKEND_BASE_URL}/api/internal/model/update"
 API_KEY_HEADER = "X-API-KEY"
-DEFAULT_API_KEY = "secret_mlops_key"
+
+# API key bat buoc lay tu environment variable / .env — KHONG hardcode
+MLOPS_API_KEY = os.getenv("MLOPS_API_KEY", "")
+
+
+def get_api_key() -> str:
+    """Tra ve API key, raise neu chua duoc cau hinh."""
+    if not MLOPS_API_KEY:
+        raise RuntimeError(
+            "MLOPS_API_KEY chua duoc thiet lap. "
+            "Them MLOPS_API_KEY=<key> vao file .env hoac environment variable."
+        )
+    return MLOPS_API_KEY
+
+
+def _parse_ssl_verify(value: str):
+    """'true'/'false' hoac duong dan toi CA bundle (.pem) cho self-signed cert."""
+    lowered = value.strip().lower()
+    if lowered in ("true", "1", "yes"):
+        return True
+    if lowered in ("false", "0", "no"):
+        return False
+    return value.strip()  # duong dan CA bundle
+
+
+# Mac dinh verify SSL. Voi backend local dung self-signed cert:
+#   MLOPS_SSL_VERIFY=path/toi/server_cert.pem
+BACKEND_SSL_VERIFY = _parse_ssl_verify(os.getenv("MLOPS_SSL_VERIFY", "true"))
 
 # ==============================================================
 # PREFECT

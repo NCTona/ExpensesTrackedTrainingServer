@@ -3,6 +3,6 @@ creation_timestamp: 1768350669830
 deployment_job_id: null
 deployment_job_state: null
 description: null
-last_updated_timestamp: 1775586932077
+last_updated_timestamp: 1781279398584
 name: ExpenseForecastingLSTM
 workspace: default

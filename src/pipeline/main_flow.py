@@ -38,7 +38,8 @@ from src.config import (
     LGBM_MODEL_PATH,
     LGBM_MODEL_FILE,
     BACKEND_DEPLOY_URL,
-    DEFAULT_API_KEY,
+    BACKEND_SSL_VERIFY,
+    get_api_key,
     API_KEY_HEADER,
     PREFECT_PORT,
     PIPELINE_CRON,
@@ -351,14 +352,14 @@ def task_deploy_model() -> bool:
                 "model_file": ("expense_model.tflite", f, "application/octet-stream")
             }
             headers = {
-                API_KEY_HEADER: os.getenv("MLOPS_API_KEY", DEFAULT_API_KEY)
+                API_KEY_HEADER: get_api_key()
             }
             response = requests.post(
                 BACKEND_DEPLOY_URL,
                 files=files,
                 headers=headers,
                 timeout=30,
-                verify=False,
+                verify=BACKEND_SSL_VERIFY,
             )
         response.raise_for_status()
         task_logger.info("Upload model thanh cong!")

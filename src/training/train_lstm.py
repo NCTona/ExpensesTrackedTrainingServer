@@ -85,6 +85,7 @@ def train() -> None:
 
     window_size = meta["window_size"]
     split = int(0.8 * len(X_ts))
+
     X_ts_train, X_ts_test = X_ts[:split], X_ts[split:]
     y_train, y_test = y[:split], y[split:]
 
@@ -133,8 +134,9 @@ def train() -> None:
             registered_model_name="ExpenseForecastingLSTM",
         )
 
-        # Convert TFLite
+        # Convert TFLite (dynamic range quantization de giam kich thuoc model)
         converter = tf.lite.TFLiteConverter.from_keras_model(model)
+        converter.optimizations = [tf.lite.Optimize.DEFAULT]
         converter.target_spec.supported_ops = [
             tf.lite.OpsSet.TFLITE_BUILTINS,
             tf.lite.OpsSet.SELECT_TF_OPS,

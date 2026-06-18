@@ -5,14 +5,14 @@
     "run_id": "f582fcdf0233431097c99048cc743438"
   },
   "lgbm": {
-    "rmse": 56895.8616,
-    "mae": 26326.2165,
-    "run_id": "6ef94c16b40a47af845bc26fc9b35c35"
+    "rmse": 52988.287,
+    "mae": 25093.2493,
+    "run_id": "0b8449e502744a5ba199a456425fe268"
   },
   "iforest": {
-    "anomaly_ratio": 5.01,
-    "n_anomalies": 463,
-    "n_samples": 9248,
-    "run_id": "46e37310b3d044329714c2788aee4b36"
+    "anomaly_ratio": 4.99,
+    "n_anomalies": 461,
+    "n_samples": 9239,
+    "run_id": "27ed488e01a6498183c13599c21a4305"
   }
 }
